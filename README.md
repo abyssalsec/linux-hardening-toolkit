@@ -7,12 +7,13 @@ The project is designed to provide reproducible security checks,
 controlled remediation, configuration backup and rollback, profiles,
 reporting, and automation-friendly execution.
 
-> Current version: v0.2.0
+> Current version: v0.3.0
 
 ## Project status
 
-v0.2 provides the core read-only audit framework and the first
-production security audit module for OpenSSH.
+v0.3 provides a read-only modular security audit framework covering
+runtime validation, OpenSSH configuration, and local Linux account
+security.
 
 Implemented:
 
@@ -22,40 +23,55 @@ Implemented:
 - deterministic exit codes;
 - verbose and colorless CLI output;
 - dry-run execution context;
+- privilege-aware checks;
 - runtime validation;
-- OpenSSH effective configuration collection;
-- OpenSSH security baseline checks.
+- OpenSSH effective configuration audit;
+- local account integrity audit;
+- local password metadata audit.
 
 Configuration remediation is not implemented yet.
 
 ## Usage
 
+Make the CLI executable:
+
 ```bash
 chmod +x bin/linux-hardening-toolkit
+```
 
+Show help:
+
+```bash
 ./bin/linux-hardening-toolkit --help
-./bin/linux-hardening-toolkit version
-./bin/linux-hardening-toolkit list-checks
+```
+
+Run the default audit:
+
+```bash
 ./bin/linux-hardening-toolkit audit
 ```
 
-Verbose audit:
-
-```bash
-./bin/linux-hardening-toolkit --verbose audit
-```
-
-Disable colors:
-
-```bash
-./bin/linux-hardening-toolkit --no-color audit
-```
-
-Run only the OpenSSH profile:
+Run with additional diagnostic details:
 
 ```bash
 ./bin/linux-hardening-toolkit \
-  --profile ssh-server \
+  --verbose \
+  audit
+```
+
+Run a complete privileged host audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --verbose \
+  audit
+```
+
+Disable ANSI colors:
+
+```bash
+./bin/linux-hardening-toolkit \
+  --no-color \
   audit
 ```
 
@@ -75,7 +91,7 @@ Each check has:
 - an audit function;
 - an optional remediation function.
 
-Example registration:
+Example:
 
 ```bash
 lht_register_check \
@@ -87,7 +103,7 @@ lht_register_check \
   "lht_apply_example"
 ```
 
-Audit functions return standardized results:
+Audit functions return one of:
 
 - `PASS`
 - `FAIL`
@@ -95,24 +111,49 @@ Audit functions return standardized results:
 - `SKIP`
 - `ERROR`
 
-This model allows future audit and remediation functionality to share
-the same module metadata and profiles.
+The same module registry is designed to support future audit and
+remediation functionality without duplicating check metadata.
+
+## Privilege model
+
+The toolkit does not require root privileges globally.
+
+Checks that can safely operate as an unprivileged user do so.
+
+Checks requiring access to protected configuration or credential
+metadata return `SKIP` when the current process does not have enough
+privileges.
+
+The toolkit never invokes `sudo` automatically.
+
+For the most complete system audit, the administrator may explicitly
+run:
+
+```bash
+sudo ./bin/linux-hardening-toolkit audit
+```
 
 ## OpenSSH audit
 
 The OpenSSH module evaluates the effective server configuration instead
 of relying on direct text matching against `/etc/ssh/sshd_config`.
 
-The module collects configuration using:
+The module prefers:
 
 ```bash
-sshd -T
+sshd -G
 ```
 
-The result is cached for the duration of the audit and consumed by
-individual security checks.
+This avoids requiring private host-key validation while obtaining the
+effective OpenSSH configuration.
 
-Current checks:
+The current process must still be able to read the complete OpenSSH
+configuration, including files referenced through `Include`.
+
+If configuration snippets are not readable, affected SSH checks are
+reported as `SKIP` and a privileged audit is recommended.
+
+Current checks include:
 
 - effective configuration availability;
 - direct root login;
@@ -126,22 +167,120 @@ Current checks:
 - SSH agent forwarding;
 - TCP forwarding.
 
-The default SSH baseline assumes a server intended to use public-key
-authentication rather than password authentication.
-
-Some functionality, such as TCP forwarding and agent forwarding, may be
-legitimate operational requirements. These checks therefore produce
-warnings instead of automatically treating enabled forwarding as a
-security failure.
-
 ### Conditional OpenSSH configuration
 
-v0.2 evaluates the global effective OpenSSH configuration.
+v0.3 evaluates the global effective OpenSSH configuration.
 
-Conditional configuration based on `Match` blocks may depend on user,
-source address, destination address, hostname, and other connection
-context. Context-specific `Match` analysis is not implemented yet and
-is not claimed by this version.
+Context-specific evaluation of every possible `Match` condition is not
+yet implemented and is not claimed by the project.
+
+## Local account audit
+
+The accounts module audits local host identities stored in:
+
+```text
+/etc/passwd
+/etc/shadow
+/etc/login.defs
+```
+
+The module intentionally does not treat LDAP, Active Directory, SSSD,
+or other external NSS identities as local host accounts.
+
+Current checks include:
+
+- local account database integrity;
+- exclusive ownership of UID 0 by root;
+- duplicate numeric UIDs;
+- password shadowing;
+- system account login shells;
+- empty shadow password fields;
+- password-aging metadata consistency;
+- future password-change dates;
+- account creation defaults from `login.defs`.
+
+### Shadow access
+
+`/etc/shadow` contains protected password and aging information.
+
+When it is not readable by the current process, shadow-backed checks are
+reported as `SKIP`.
+
+For complete account results:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile accounts \
+  --verbose \
+  audit
+```
+
+### Password aging policy
+
+The toolkit does not currently enforce arbitrary periodic password
+rotation such as a universal 30-, 60-, or 90-day expiration period.
+
+Values including:
+
+```text
+PASS_MAX_DAYS
+PASS_MIN_DAYS
+PASS_WARN_AGE
+```
+
+are collected as account-creation defaults and audit context.
+
+Existing per-account aging metadata is evaluated independently from
+`/etc/shadow`.
+
+A future configurable policy layer may allow organizations to explicitly
+select stricter password-aging requirements when required by their own
+security policy or compliance environment.
+
+## Profiles
+
+Profiles determine which registered checks are enabled.
+
+Profile configuration is parsed as data and is never executed as shell
+code.
+
+Included profiles:
+
+### default
+
+General Linux server baseline:
+
+```bash
+./bin/linux-hardening-toolkit audit
+```
+
+### ssh-server
+
+OpenSSH-specific audit:
+
+```bash
+./bin/linux-hardening-toolkit \
+  --profile ssh-server \
+  audit
+```
+
+### accounts
+
+Local account and password metadata audit:
+
+```bash
+./bin/linux-hardening-toolkit \
+  --profile accounts \
+  audit
+```
+
+For complete shadow-backed results:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile accounts \
+  audit
+```
 
 ## Exit codes
 
@@ -151,47 +290,19 @@ is not claimed by this version.
 | `1` | Toolkit, runtime, or check execution error |
 | `2` | Audit completed successfully but one or more checks failed |
 
-Warnings do not change the process exit code to `2`.
-
-## Profiles
-
-Profiles determine which registered checks are enabled.
-
-Profiles are parsed as configuration data and are not executed as shell
-code.
-
-Included profiles:
-
-### default
-
-General Linux server baseline.
-
-```bash
-./bin/linux-hardening-toolkit audit
-```
-
-### ssh-server
-
-OpenSSH-specific audit.
-
-```bash
-./bin/linux-hardening-toolkit \
-  --profile ssh-server \
-  audit
-```
+Warnings and skipped checks do not change the process exit code to `2`.
 
 ## Security baseline
 
 Linux Hardening Toolkit does not claim official CIS certification or
 official conformance with any third-party security benchmark.
 
-Security checks implemented by the project represent documented,
-generally accepted Linux and service-hardening practices.
+Checks implemented by the project represent documented Linux security
+practices and explicitly distinguish between:
 
-Checks should clearly distinguish between:
-
-- definite baseline violations;
+- definite security baseline violations;
 - environment-dependent security decisions;
+- insufficient audit privileges;
 - unavailable or non-applicable functionality;
 - audit execution errors.
 
@@ -200,30 +311,25 @@ Checks should clearly distinguish between:
 - Linux
 - Bash 4.0 or newer
 
-The audit framework does not require root privileges globally.
-
-Some system configuration may not be readable or evaluable by an
-unprivileged account. In such cases the toolkit reports the limitation
-instead of silently guessing the effective configuration.
-
 ## Roadmap
 
-Planned areas include:
+Planned security domains and capabilities include:
 
-- users and authentication policy;
 - sudo policy;
+- PAM and password authentication policy;
 - kernel and sysctl;
 - firewall;
 - filesystem permissions;
 - unnecessary services;
 - audit and logging;
 - automatic security updates;
-- configuration remediation;
-- backup and rollback;
+- remediation;
+- configuration backup;
+- rollback;
 - machine-readable reports;
 - Ansible integration;
 - automated testing;
-- CI workflows.
+- GitHub Actions.
 
 ## License
 
