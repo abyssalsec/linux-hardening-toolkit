@@ -7,7 +7,7 @@ The project is designed to provide reproducible security checks,
 controlled remediation, configuration backup and rollback, profiles,
 reporting, and automation-friendly execution.
 
-> Current version: v0.4.0
+> Current version: v0.5.0
 
 ## Project status
 
@@ -28,6 +28,9 @@ Implemented:
 - OpenSSH effective configuration audit;
 - local account integrity audit;
 - local password metadata audit;
+- Linux kernel runtime security audit;
+- IPv4/IPv6 sysctl security audit;
+- effective reverse-path filtering analysis;
 - sudo policy syntax and configuration integrity audit.
 Configuration remediation is not implemented yet.
 
@@ -273,6 +276,15 @@ OpenSSH-specific audit:
   --profile ssh-server \
   audit
 ```
+
+### kernel
+
+Linux kernel and network runtime security audit:
+
+```bash
+./bin/linux-hardening-toolkit \
+  --profile kernel \
+  audit
 
 ### accounts
 
