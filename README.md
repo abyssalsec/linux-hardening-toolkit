@@ -7,7 +7,7 @@ The project is designed to provide reproducible security checks,
 controlled remediation, configuration backup and rollback, profiles,
 reporting, and automation-friendly execution.
 
-> Current version: v0.3.0
+> Current version: v0.4.0
 
 ## Project status
 
@@ -27,8 +27,8 @@ Implemented:
 - runtime validation;
 - OpenSSH effective configuration audit;
 - local account integrity audit;
-- local password metadata audit.
-
+- local password metadata audit;
+- sudo policy syntax and configuration integrity audit.
 Configuration remediation is not implemented yet.
 
 ## Usage
@@ -237,6 +237,16 @@ A future configurable policy layer may allow organizations to explicitly
 select stricter password-aging requirements when required by their own
 security policy or compliance environment.
 
+## sudo policy audit
+
+The sudo module evaluates sudo configuration integrity without attempting
+to implement a custom sudoers parser.
+
+Native policy validation is performed with:
+
+```bash
+visudo -c
+
 ## Profiles
 
 Profiles determine which registered checks are enabled.
@@ -281,6 +291,15 @@ sudo ./bin/linux-hardening-toolkit \
   --profile accounts \
   audit
 ```
+
+### sudo
+
+sudo policy and configuration integrity audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile sudo \
+  audit
 
 ## Exit codes
 
