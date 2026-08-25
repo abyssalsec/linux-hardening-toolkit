@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if (( BASH_VERSINFO[0] < 4 )); then
+  printf 'ERROR: Bash 4.0 or newer is required. Detected: %s\n' \
+    "$BASH_VERSION" >&2
+  exit 1
+fi
+
+LHT_ENTRYPOINT="${BASH_SOURCE[0]}"
+
+while [[ -L "$LHT_ENTRYPOINT" ]]; do
+  LHT_ENTRY_DIR="$(
+    cd -P "$(dirname "$LHT_ENTRYPOINT")" >/dev/null 2>&1
+    pwd
+  )"
+
+  LHT_ENTRYPOINT="$(readlink "$LHT_ENTRYPOINT")"
+
+  if [[ "$LHT_ENTRYPOINT" != /* ]]; then
+    LHT_ENTRYPOINT="${LHT_ENTRY_DIR}/${LHT_ENTRYPOINT}"
+  fi
+done
+
+LHT_BIN_DIR="$(
+  cd -P "$(dirname "$LHT_ENTRYPOINT")" >/dev/null 2>&1
+  pwd
+)"
+
+LHT_ROOT_DIR="$(
+  cd "${LHT_BIN_DIR}/.." >/dev/null 2>&1
+  pwd -P
+)"
+
+readonly LHT_ROOT_DIR
+
+if [[ ! -r "${LHT_ROOT_DIR}/VERSION" ]]; then
+  printf 'ERROR: VERSION file is missing\n' >&2
+  exit 1
+fi
+
+LHT_VERSION="$(<"${LHT_ROOT_DIR}/VERSION")"
+readonly LHT_VERSION
+
+LHT_PROFILE_NAME="default"
+LHT_DRY_RUN=0
+LHT_NO_COLOR=0
+LHT_VERBOSE=0
+LHT_COMMAND=""
+
+# shellcheck source=lib/core/bootstrap.sh
+source "${LHT_ROOT_DIR}/lib/core/bootstrap.sh"
+
+lht_print_help() {
+  cat <<EOF
+Linux Hardening Toolkit v${LHT_VERSION}
+
+Usage:
+  linux-hardening-toolkit [options] <command>
+
+Commands:
+  audit           Run checks enabled by the selected profile
+  list-checks     List registered checks and their metadata
+  version         Print toolkit version
+  help            Show this help
+
+Options:
+  --profile NAME  Select audit profile (default: default)
+  --dry-run       Enable no-write execution context
+  --no-color      Disable ANSI colored output
+  -v, --verbose   Show additional check details
+  -h, --help      Show help
+  --version       Print toolkit version
+
+Notes:
+  The audit command is always read-only.
+  --dry-run is already part of the execution context for future
+  mutating commands.
+
+Examples:
+  linux-hardening-toolkit audit
+  linux-hardening-toolkit --profile default audit
+  linux-hardening-toolkit --verbose audit
+  linux-hardening-toolkit list-checks
+EOF
+}
+
+lht_parse_cli() {
+  local help_requested=0
+  local version_requested=0
+
+  while (( $# > 0 )); do
+    case "$1" in
+      audit|list-checks|version|help)
+        if [[ -n "$LHT_COMMAND" ]]; then
+          lht_die "Only one command may be specified"
+        fi
+
+        LHT_COMMAND="$1"
+        shift
+        ;;
+
+      --profile)
+        if (( $# < 2 )); then
+          lht_die "--profile requires a profile name"
+        fi
+
+        LHT_PROFILE_NAME="$2"
+        shift 2
+        ;;
+
+      --dry-run)
+        LHT_DRY_RUN=1
+        shift
+        ;;
+
+      --no-color)
+        LHT_NO_COLOR=1
+        shift
+        ;;
+
+      -v|--verbose)
+        LHT_VERBOSE=1
+        shift
+        ;;
+
+      -h|--help)
+        help_requested=1
+        shift
+        ;;
+
+      --version)
+        version_requested=1
+        shift
+        ;;
+
+      --)
+        shift
+
+        if (( $# > 0 )); then
+          lht_die "Unexpected positional argument: $1"
+        fi
+        ;;
+
+      -*)
+        lht_die "Unknown option: $1"
+        ;;
+
+      *)
+        lht_die "Unknown command or argument: $1"
+        ;;
+    esac
+  done
+
+  if (( version_requested == 1 )); then
+    LHT_COMMAND="version"
+  elif (( help_requested == 1 )); then
+    LHT_COMMAND="help"
+  elif [[ -z "$LHT_COMMAND" ]]; then
+    LHT_COMMAND="help"
+  fi
+}
+
+main() {
+  lht_parse_cli "$@"
+
+  case "$LHT_COMMAND" in
+    help)
+      lht_print_help
+      ;;
+
+    version)
+      printf '%s\n' "$LHT_VERSION"
+      ;;
+
+    list-checks)
+      lht_bootstrap_modules
+      lht_load_profile "$LHT_PROFILE_NAME"
+      lht_print_check_catalog
+      ;;
+
+    audit)
+      lht_bootstrap_modules
+      lht_load_profile "$LHT_PROFILE_NAME"
+
+      local audit_rc=0
+
+      if lht_run_audit; then
+        audit_rc=0
+      else
+        audit_rc=$?
+      fi
+
+      return "$audit_rc"
+      ;;
+
+    *)
+      lht_die "Unhandled command: ${LHT_COMMAND}"
+      ;;
+  esac
+}
+
+main "$@"

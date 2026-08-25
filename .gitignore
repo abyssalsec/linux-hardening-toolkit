@@ -1,0 +1,13 @@
+# Generated runtime artifacts
+.reports/
+.backups/
+.cache/
+tmp/
+*.log
+
+# Operating systems
+.DS_Store
+
+# Editors and IDEs
+.idea/
+.vscode/
