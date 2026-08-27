@@ -389,6 +389,25 @@ Network-facing services are reported separately from definite security
 violations. Role-dependent services are surfaced for review rather than
 automatically treated as vulnerabilities.
 
+### audit
+
+Linux audit subsystem and security logging audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile audit \
+  audit
+```
+
+The audit profile reviews systemd-journald availability and persistence,
+traditional syslog services, security log file permissions, Linux audit
+userspace availability, auditd service state, kernel audit status, active
+audit rules, critical-path coverage, and auditd failure handling.
+
+Unavailable audit functionality is reported separately from definite
+configuration violations so that missing auditd does not produce cascading
+false failures.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -424,7 +443,6 @@ Planned security domains and capabilities include:
 
 - sudo policy;
 - kernel and sysctl;
-- audit and logging;
 - automatic security updates;
 - remediation;
 - configuration backup;
