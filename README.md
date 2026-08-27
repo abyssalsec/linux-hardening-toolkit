@@ -351,6 +351,26 @@ Debian/Ubuntu common-* PAM layouts and RHEL-family system-auth/password-auth
 layouts are supported. Checks distinguish between definite policy violations,
 unavailable controls, and settings that require manual review.
 
+### filesystem
+
+Sensitive file ownership and permission audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile filesystem \
+  audit
+```
+
+The filesystem audit reviews ownership and permissions for critical account
+databases, the root home directory, and SSH private host keys.
+
+It also scans selected sensitive system paths for world-writable files,
+world-writable directories without sticky-bit protection, unowned objects,
+and SUID/SGID executables requiring security review.
+
+Runtime and container storage paths are intentionally excluded from broad
+ownership scans to reduce false positives caused by isolated UID/GID mappings.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -386,7 +406,6 @@ Planned security domains and capabilities include:
 
 - sudo policy;
 - kernel and sysctl;
-- filesystem permissions;
 - unnecessary services;
 - audit and logging;
 - automatic security updates;
