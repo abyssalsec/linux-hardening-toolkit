@@ -427,6 +427,53 @@ APT-based Debian and Ubuntu systems are fully supported. DNF-based systems
 are also detected and evaluated where equivalent automatic-update controls
 are available.
 
+## Machine-readable reports
+
+Audit results can be emitted as structured JSON for CI pipelines, automation,
+security tooling, and further analysis.
+
+Write JSON to standard output:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile default \
+  --format json \
+  audit
+```
+
+Write the report directly to a file:
+
+```bash
+./bin/linux-hardening-toolkit \
+  --profile default \
+  --format json \
+  --output report.json \
+  audit
+```
+
+Generated report files are created with restrictive permissions (`0600`).
+
+The JSON report includes toolkit and profile metadata, generation timestamp,
+audit summary and exit code, plus structured metadata and results for every
+executed check.
+
+Example result object:
+
+```json
+{
+  "id": "ssh.root-login",
+  "category": "ssh",
+  "severity": "high",
+  "title": "SSH root login disabled",
+  "status": "FAIL",
+  "message": "SSH root login is permitted",
+  "details": "permitrootlogin=yes",
+  "remediation_available": false
+}
+```
+
+The current report schema version is `1`.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -465,7 +512,6 @@ Planned security domains and capabilities include:
 - remediation;
 - configuration backup;
 - rollback;
-- machine-readable reports;
 - Ansible integration;
 - automated testing;
 - GitHub Actions.

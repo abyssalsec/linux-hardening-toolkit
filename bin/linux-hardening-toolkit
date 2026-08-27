@@ -47,6 +47,8 @@ LHT_PROFILE_NAME="default"
 LHT_DRY_RUN=0
 LHT_NO_COLOR=0
 LHT_VERBOSE=0
+LHT_OUTPUT_FORMAT="text"
+LHT_OUTPUT_PATH=""
 LHT_COMMAND=""
 
 # shellcheck source=lib/core/bootstrap.sh
@@ -67,6 +69,8 @@ Commands:
 
 Options:
   --profile NAME  Select audit profile (default: default)
+  --format FORMAT Audit output format: text or json (default: text)
+  --output PATH   Write JSON audit report to PATH; use - for stdout
   --dry-run       Enable no-write execution context
   --no-color      Disable ANSI colored output
   -v, --verbose   Show additional check details
@@ -77,11 +81,14 @@ Notes:
   The audit command is always read-only.
   --dry-run is already part of the execution context for future
   mutating commands.
+  JSON reports always include details for every executed check.
 
 Examples:
   linux-hardening-toolkit audit
   linux-hardening-toolkit --profile default audit
   linux-hardening-toolkit --verbose audit
+  linux-hardening-toolkit --profile default --format json audit
+  linux-hardening-toolkit --profile default --format json --output report.json audit
   linux-hardening-toolkit list-checks
 EOF
 }
@@ -107,6 +114,24 @@ lht_parse_cli() {
         fi
 
         LHT_PROFILE_NAME="$2"
+        shift 2
+        ;;
+
+      --format)
+        if (( $# < 2 )); then
+          lht_die "--format requires an output format"
+        fi
+
+        LHT_OUTPUT_FORMAT="${2,,}"
+        shift 2
+        ;;
+
+      --output)
+        if (( $# < 2 )); then
+          lht_die "--output requires a path"
+        fi
+
+        LHT_OUTPUT_PATH="$2"
         shift 2
         ;;
 
@@ -159,6 +184,24 @@ lht_parse_cli() {
     LHT_COMMAND="help"
   elif [[ -z "$LHT_COMMAND" ]]; then
     LHT_COMMAND="help"
+  fi
+
+  if [[ "$LHT_COMMAND" == "audit" ]]; then
+    case "$LHT_OUTPUT_FORMAT" in
+      text|json)
+        ;;
+      *)
+        lht_die "Unsupported output format: ${LHT_OUTPUT_FORMAT}"
+        ;;
+    esac
+
+    if [[ -n "$LHT_OUTPUT_PATH" ]]       && [[ "$LHT_OUTPUT_FORMAT" != "json" ]]; then
+
+      lht_die "--output requires --format json"
+    fi
+  elif [[ "$LHT_OUTPUT_FORMAT" != "text" ]]     || [[ -n "$LHT_OUTPUT_PATH" ]]; then
+
+    lht_die "--format and --output are valid only with the audit command"
   fi
 }
 

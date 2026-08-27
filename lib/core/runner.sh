@@ -4,6 +4,9 @@ LHT_RESULT_STATUS=""
 LHT_RESULT_SUMMARY=""
 LHT_RESULT_DETAILS=""
 
+# shellcheck source=lib/core/report.sh
+source "${LHT_ROOT_DIR}/lib/core/report.sh"
+
 lht_reset_result() {
   LHT_RESULT_STATUS=""
   LHT_RESULT_SUMMARY=""
@@ -47,18 +50,31 @@ lht_print_audit_header() {
   printf '\n'
 }
 
-lht_run_audit() {
-  local pass_count=0
-  local fail_count=0
-  local warn_count=0
-  local skip_count=0
-  local error_count=0
+lht_print_audit_summary() {
+  printf '\n'
+  printf 'Summary: PASS=%d FAIL=%d WARN=%d SKIP=%d ERROR=%d\n' \
+    "$LHT_AUDIT_PASS_COUNT" \
+    "$LHT_AUDIT_FAIL_COUNT" \
+    "$LHT_AUDIT_WARN_COUNT" \
+    "$LHT_AUDIT_SKIP_COUNT" \
+    "$LHT_AUDIT_ERROR_COUNT"
+}
 
+lht_run_audit() {
   local check_id=""
   local audit_function=""
   local check_rc=0
+  local output_format="${LHT_OUTPUT_FORMAT:-text}"
 
-  lht_print_audit_header
+  lht_reset_audit_report
+
+  LHT_AUDIT_GENERATED_AT="$(
+    date -u '+%Y-%m-%dT%H:%M:%SZ'
+  )"
+
+  if [[ "$output_format" == "text" ]]; then
+    lht_print_audit_header
+  fi
 
   for check_id in "${LHT_ENABLED_CHECKS[@]}"; do
     audit_function="${LHT_CHECK_AUDIT_FN[$check_id]}"
@@ -83,54 +99,42 @@ lht_run_audit() {
         "Function '${audit_function}' did not call lht_result"
     fi
 
-    case "$LHT_RESULT_STATUS" in
-      PASS)
-        pass_count=$((pass_count + 1))
-        ;;
-      FAIL)
-        fail_count=$((fail_count + 1))
-        ;;
-      WARN)
-        warn_count=$((warn_count + 1))
-        ;;
-      SKIP)
-        skip_count=$((skip_count + 1))
-        ;;
-      ERROR)
-        error_count=$((error_count + 1))
-        ;;
-    esac
-
-    lht_print_status \
-      "$LHT_RESULT_STATUS" \
+    lht_record_audit_result \
       "$check_id" \
-      "$LHT_RESULT_SUMMARY"
+      "$LHT_RESULT_STATUS" \
+      "$LHT_RESULT_SUMMARY" \
+      "$LHT_RESULT_DETAILS"
 
-    if [[ -n "$LHT_RESULT_DETAILS" ]]; then
-      if [[ "${LHT_VERBOSE:-0}" == "1" ]] \
-        || [[ "$LHT_RESULT_STATUS" != "PASS" ]]; then
-        lht_print_detail "$LHT_RESULT_DETAILS"
+    if [[ "$output_format" == "text" ]]; then
+      lht_print_status \
+        "$LHT_RESULT_STATUS" \
+        "$check_id" \
+        "$LHT_RESULT_SUMMARY"
+
+      if [[ -n "$LHT_RESULT_DETAILS" ]]; then
+        if [[ "${LHT_VERBOSE:-0}" == "1" ]] \
+          || [[ "$LHT_RESULT_STATUS" != "PASS" ]]; then
+          lht_print_detail "$LHT_RESULT_DETAILS"
+        fi
       fi
     fi
   done
 
-  printf '\n'
-  printf 'Summary: PASS=%d FAIL=%d WARN=%d SKIP=%d ERROR=%d\n' \
-    "$pass_count" \
-    "$fail_count" \
-    "$warn_count" \
-    "$skip_count" \
-    "$error_count"
+  lht_finalize_audit_report
 
-  if (( error_count > 0 )); then
-    return 1
-  fi
+  case "$output_format" in
+    text)
+      lht_print_audit_summary
+      ;;
+    json)
+      lht_write_json_report
+      ;;
+    *)
+      lht_die "Unsupported audit output format: ${output_format}"
+      ;;
+  esac
 
-  if (( fail_count > 0 )); then
-    return 2
-  fi
-
-  return 0
+  return "$LHT_AUDIT_EXIT_CODE"
 }
 
 lht_print_check_catalog() {
