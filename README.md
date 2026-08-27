@@ -1,5 +1,7 @@
 # Linux Hardening Toolkit
 
+[![CI](https://github.com/abyssalsec/linux-hardening-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/abyssalsec/linux-hardening-toolkit/actions/workflows/ci.yml)
+
 Linux Hardening Toolkit is a modular Bash-based security auditing and
 hardening framework for Linux servers.
 
@@ -503,6 +505,44 @@ practices and explicitly distinguish between:
 - Linux
 - Bash 4.0 or newer
 
+## Testing
+
+The project includes automated unit and integration tests for core toolkit
+behavior, result handling, JSON reporting, CLI validation, exit codes, and
+report file generation.
+
+Run the complete test suite:
+
+```bash
+./tests/run.sh
+```
+
+The test runner also performs Bash syntax validation across the toolkit.
+
+## Static analysis
+
+Shell scripts are checked with ShellCheck.
+
+```bash
+./scripts/lint.sh
+```
+
+ShellCheck warnings are treated as code-quality issues and are resolved or
+explicitly documented where cross-file sourced state requires suppression.
+
+## Continuous integration
+
+GitHub Actions automatically runs the ShellCheck and test-suite jobs on
+pushes and pull requests.
+
+The CI pipeline verifies:
+
+- Bash syntax;
+- ShellCheck static analysis;
+- unit tests;
+- CLI integration tests;
+- JSON report generation and validation.
+
 ## Roadmap
 
 Planned security domains and capabilities include:
@@ -513,8 +553,6 @@ Planned security domains and capabilities include:
 - configuration backup;
 - rollback;
 - Ansible integration;
-- automated testing;
-- GitHub Actions.
 
 ## License
 
