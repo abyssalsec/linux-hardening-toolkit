@@ -313,6 +313,26 @@ sudo ./bin/linux-hardening-toolkit \
   --profile sudo \
   audit
 
+### firewall
+
+Host firewall and network exposure audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile firewall \
+  audit
+
+The firewall audit detects supported host firewall backends including UFW,
+firewalld, nftables, and iptables.
+
+It evaluates whether host firewall filtering is active, reviews default
+inbound and forwarding policies where possible, inspects the active ruleset,
+and inventories network services listening on wildcard addresses.
+
+Container-managed forwarding rules, such as Docker nftables chains, are not
+treated as evidence that the host itself has an active inbound firewall
+policy.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -349,7 +369,6 @@ Planned security domains and capabilities include:
 - sudo policy;
 - PAM and password authentication policy;
 - kernel and sysctl;
-- firewall;
 - filesystem permissions;
 - unnecessary services;
 - audit and logging;
