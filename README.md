@@ -371,6 +371,24 @@ and SUID/SGID executables requiring security review.
 Runtime and container storage paths are intentionally excluded from broad
 ownership scans to reduce false positives caused by isolated UID/GID mappings.
 
+### services
+
+Service exposure and unnecessary network daemon audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile services \
+  audit
+```
+
+The services audit reviews the systemd runtime, failed service units,
+network-facing listeners, insecure legacy remote-access services, FTP/TFTP
+servers, RPC and multicast discovery daemons, and inetd-style superservers.
+
+Network-facing services are reported separately from definite security
+violations. Role-dependent services are surfaced for review rather than
+automatically treated as vulnerabilities.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -406,7 +424,6 @@ Planned security domains and capabilities include:
 
 - sudo policy;
 - kernel and sysctl;
-- unnecessary services;
 - audit and logging;
 - automatic security updates;
 - remediation;
