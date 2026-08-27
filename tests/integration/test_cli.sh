@@ -195,4 +195,27 @@ assert_contains \
   "Summary: PASS=" \
   "text renderer prints audit summary"
 
+
+set +e
+
+no_banner_help="$(
+  ./bin/linux-hardening-toolkit \
+    --no-banner \
+    --help 2>&1
+)"
+
+no_banner_rc=$?
+
+set -e
+
+assert_eq \
+  "0" \
+  "$no_banner_rc" \
+  "--no-banner is accepted by CLI"
+
+assert_contains \
+  "$no_banner_help" \
+  "--no-banner" \
+  "help documents --no-banner"
+
 finish_tests
