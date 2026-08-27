@@ -408,6 +408,25 @@ Unavailable audit functionality is reported separately from definite
 configuration violations so that missing auditd does not produce cascading
 false failures.
 
+### updates
+
+Automatic security update and package maintenance audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile updates \
+  audit
+```
+
+The updates audit detects the system package-management backend and reviews
+automatic update tooling, repository metadata refresh, unattended package
+installation, security update scope, systemd update scheduling, and pending
+reboot state.
+
+APT-based Debian and Ubuntu systems are fully supported. DNF-based systems
+are also detected and evaluated where equivalent automatic-update controls
+are available.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -443,7 +462,6 @@ Planned security domains and capabilities include:
 
 - sudo policy;
 - kernel and sysctl;
-- automatic security updates;
 - remediation;
 - configuration backup;
 - rollback;
