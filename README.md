@@ -333,6 +333,24 @@ Container-managed forwarding rules, such as Docker nftables chains, are not
 treated as evidence that the host itself has an active inbound firewall
 policy.
 
+### auth
+
+PAM and password authentication policy audit:
+
+```bash
+sudo ./bin/linux-hardening-toolkit \
+  --profile auth \
+  audit
+```
+
+The authentication audit detects the central PAM stack and reviews
+null-password authentication, password quality enforcement, minimum password
+length, password history, failed-login lockout policy, and password hashing.
+
+Debian/Ubuntu common-* PAM layouts and RHEL-family system-auth/password-auth
+layouts are supported. Checks distinguish between definite policy violations,
+unavailable controls, and settings that require manual review.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -367,7 +385,6 @@ practices and explicitly distinguish between:
 Planned security domains and capabilities include:
 
 - sudo policy;
-- PAM and password authentication policy;
 - kernel and sysctl;
 - filesystem permissions;
 - unnecessary services;
