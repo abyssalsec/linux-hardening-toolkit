@@ -4,6 +4,10 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Bash](https://img.shields.io/badge/Bash-%3E%3D4.0-4EAA25.svg)
 
+<p align="center">
+  <img src="docs/images/cover.png" alt="Linux Hardening Toolkit by #ABSL Security" width="100%">
+</p>
+
 A modular, profile-driven and read-only Linux security auditing toolkit written in Bash.
 
 Linux Hardening Toolkit evaluates the effective security state of a Linux host,
@@ -31,6 +35,20 @@ machine-readable and non-interactive output for automation.
 - ShellCheck static analysis
 - automated unit and integration tests
 - GitHub Actions CI
+
+## Screenshots
+
+### Security audit
+
+<p align="center">
+  <img src="docs/images/audit-overview.jpg" alt="Linux Hardening Toolkit audit overview" width="100%">
+</p>
+
+### Audit findings
+
+<p align="center">
+  <img src="docs/images/audit-findings.jpg" alt="Linux Hardening Toolkit audit findings" width="100%">
+</p>
 
 ## Quick start
 
