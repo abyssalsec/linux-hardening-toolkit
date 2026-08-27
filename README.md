@@ -1,449 +1,333 @@
 # Linux Hardening Toolkit
 
 [![CI](https://github.com/abyssalsec/linux-hardening-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/abyssalsec/linux-hardening-toolkit/actions/workflows/ci.yml)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Bash](https://img.shields.io/badge/bash-%3E%3D4.0-4EAA25.svg)
 
-Linux Hardening Toolkit is a modular Bash-based security auditing and
-hardening framework for Linux servers.
+A profile-driven, read-only Linux security auditing toolkit written in Bash.
 
-The project is designed to provide reproducible security checks,
-controlled remediation, configuration backup and rollback, profiles,
-reporting, and automation-friendly execution.
+Linux Hardening Toolkit evaluates the effective security state of a Linux
+host, classifies findings with explicit result semantics, and can produce
+both human-readable terminal output and structured JSON reports.
 
-> Current version: v0.5.0
+Version 1.0.0 includes **96 checks in the default server profile** across
+OpenSSH, local accounts, sudo, kernel/sysctl, host firewall, PAM,
+filesystem permissions, exposed services, audit/logging, and automatic
+security updates.
 
-## Project status
+## Highlights
 
-v0.3 provides a read-only modular security audit framework covering
-runtime validation, OpenSSH configuration, and local Linux account
-security.
+- 96 checks in the default Linux server baseline
+- 11 built-in audit profiles
+- read-only audit execution
+- modular check registry and profile system
+- explicit `PASS`, `FAIL`, `WARN`, `SKIP`, and `ERROR` states
+- deterministic process exit codes
+- structured JSON reports
+- atomic report-file generation with restrictive permissions
+- ShellCheck static analysis
+- automated unit and integration tests
+- GitHub Actions continuous integration
 
-Implemented:
+## Quick start
 
-- modular check registry;
-- profile-based check selection;
-- standardized audit results;
-- deterministic exit codes;
-- verbose and colorless CLI output;
-- dry-run execution context;
-- privilege-aware checks;
-- runtime validation;
-- OpenSSH effective configuration audit;
-- local account integrity audit;
-- local password metadata audit;
-- Linux kernel runtime security audit;
-- IPv4/IPv6 sysctl security audit;
-- effective reverse-path filtering analysis;
-- sudo policy syntax and configuration integrity audit.
-Configuration remediation is not implemented yet.
-
-## Usage
-
-Make the CLI executable:
+Clone the repository:
 
 ```bash
-chmod +x bin/linux-hardening-toolkit
-```
-
-Show help:
-
-```bash
-./bin/linux-hardening-toolkit --help
+git clone https://github.com/abyssalsec/linux-hardening-toolkit.git
+cd linux-hardening-toolkit
 ```
 
 Run the default audit:
 
 ```bash
-./bin/linux-hardening-toolkit audit
-```
-
-Run with additional diagnostic details:
-
-```bash
-./bin/linux-hardening-toolkit \
-  --verbose \
-  audit
-```
-
-Run a complete privileged host audit:
-
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --verbose \
-  audit
-```
-
-Disable ANSI colors:
-
-```bash
-./bin/linux-hardening-toolkit \
-  --no-color \
-  audit
-```
-
-## Architecture
-
-The CLI acts as an orchestration layer.
-
-Security functionality is implemented by independent modules that
-register checks with the core registry.
-
-Each check has:
-
-- a stable check ID;
-- a category;
-- a title;
-- a severity;
-- an audit function;
-- an optional remediation function.
-
-Example:
-
-```bash
-lht_register_check \
-  "example.security-check" \
-  "example" \
-  "Example security check" \
-  "high" \
-  "lht_check_example" \
-  "lht_apply_example"
-```
-
-Audit functions return one of:
-
-- `PASS`
-- `FAIL`
-- `WARN`
-- `SKIP`
-- `ERROR`
-
-The same module registry is designed to support future audit and
-remediation functionality without duplicating check metadata.
-
-## Privilege model
-
-The toolkit does not require root privileges globally.
-
-Checks that can safely operate as an unprivileged user do so.
-
-Checks requiring access to protected configuration or credential
-metadata return `SKIP` when the current process does not have enough
-privileges.
-
-The toolkit never invokes `sudo` automatically.
-
-For the most complete system audit, the administrator may explicitly
-run:
-
-```bash
 sudo ./bin/linux-hardening-toolkit audit
 ```
 
-## OpenSSH audit
-
-The OpenSSH module evaluates the effective server configuration instead
-of relying on direct text matching against `/etc/ssh/sshd_config`.
-
-The module prefers:
-
-```bash
-sshd -G
-```
-
-This avoids requiring private host-key validation while obtaining the
-effective OpenSSH configuration.
-
-The current process must still be able to read the complete OpenSSH
-configuration, including files referenced through `Include`.
-
-If configuration snippets are not readable, affected SSH checks are
-reported as `SKIP` and a privileged audit is recommended.
-
-Current checks include:
-
-- effective configuration availability;
-- direct root login;
-- password authentication;
-- keyboard-interactive authentication;
-- empty-password authentication;
-- public key authentication;
-- maximum authentication attempts;
-- user-controlled environment processing;
-- X11 forwarding;
-- SSH agent forwarding;
-- TCP forwarding.
-
-### Conditional OpenSSH configuration
-
-v0.3 evaluates the global effective OpenSSH configuration.
-
-Context-specific evaluation of every possible `Match` condition is not
-yet implemented and is not claimed by the project.
-
-## Local account audit
-
-The accounts module audits local host identities stored in:
-
-```text
-/etc/passwd
-/etc/shadow
-/etc/login.defs
-```
-
-The module intentionally does not treat LDAP, Active Directory, SSSD,
-or other external NSS identities as local host accounts.
-
-Current checks include:
-
-- local account database integrity;
-- exclusive ownership of UID 0 by root;
-- duplicate numeric UIDs;
-- password shadowing;
-- system account login shells;
-- empty shadow password fields;
-- password-aging metadata consistency;
-- future password-change dates;
-- account creation defaults from `login.defs`.
-
-### Shadow access
-
-`/etc/shadow` contains protected password and aging information.
-
-When it is not readable by the current process, shadow-backed checks are
-reported as `SKIP`.
-
-For complete account results:
+Run a specific profile:
 
 ```bash
 sudo ./bin/linux-hardening-toolkit \
-  --profile accounts \
-  --verbose \
-  audit
-```
-
-### Password aging policy
-
-The toolkit does not currently enforce arbitrary periodic password
-rotation such as a universal 30-, 60-, or 90-day expiration period.
-
-Values including:
-
-```text
-PASS_MAX_DAYS
-PASS_MIN_DAYS
-PASS_WARN_AGE
-```
-
-are collected as account-creation defaults and audit context.
-
-Existing per-account aging metadata is evaluated independently from
-`/etc/shadow`.
-
-A future configurable policy layer may allow organizations to explicitly
-select stricter password-aging requirements when required by their own
-security policy or compliance environment.
-
-## sudo policy audit
-
-The sudo module evaluates sudo configuration integrity without attempting
-to implement a custom sudoers parser.
-
-Native policy validation is performed with:
-
-```bash
-visudo -c
-
-## Profiles
-
-Profiles determine which registered checks are enabled.
-
-Profile configuration is parsed as data and is never executed as shell
-code.
-
-Included profiles:
-
-### default
-
-General Linux server baseline:
-
-```bash
-./bin/linux-hardening-toolkit audit
-```
-
-### ssh-server
-
-OpenSSH-specific audit:
-
-```bash
-./bin/linux-hardening-toolkit \
   --profile ssh-server \
   audit
 ```
 
-### kernel
-
-Linux kernel and network runtime security audit:
+List all registered checks:
 
 ```bash
-./bin/linux-hardening-toolkit \
-  --profile kernel \
-  audit
-
-### accounts
-
-Local account and password metadata audit:
-
-```bash
-./bin/linux-hardening-toolkit \
-  --profile accounts \
-  audit
+./bin/linux-hardening-toolkit list-checks
 ```
 
-For complete shadow-backed results:
+Show the installed version:
 
 ```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile accounts \
-  audit
+./bin/linux-hardening-toolkit --version
 ```
 
-### sudo
+## Result model
 
-sudo policy and configuration integrity audit:
+Every executed check produces one of five result states:
 
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile sudo \
-  audit
+| Status | Meaning |
+| --- | --- |
+| `PASS` | The evaluated security control satisfies the toolkit baseline |
+| `FAIL` | A definite baseline violation was detected |
+| `WARN` | A condition requires review but is not universally insecure |
+| `SKIP` | The check is unavailable, not applicable, or cannot be evaluated in the current environment |
+| `ERROR` | The check itself could not execute successfully |
 
-### firewall
+This distinction is intentional. Environment-dependent configuration is not
+automatically classified as a vulnerability, and unavailable functionality
+is not silently treated as a pass.
 
-Host firewall and network exposure audit:
+## Profiles
+
+Profiles define which registered checks are executed for a particular audit.
+
+| Profile | Checks | Purpose |
+| --- | ---: | --- |
+| `default` | 96 | Complete Linux server security baseline |
+| `accounts` | 10 | Local account and password metadata |
+| `audit` | 10 | Linux audit subsystem and security logging |
+| `auth` | 8 | PAM and password authentication policy |
+| `filesystem` | 10 | Sensitive file ownership and permissions |
+| `firewall` | 6 | Host firewall and network exposure |
+| `kernel` | 18 | Kernel and network runtime hardening |
+| `services` | 7 | Network listeners and unnecessary services |
+| `ssh-server` | 11 | OpenSSH server security |
+| `sudo` | 7 | sudo policy syntax and configuration integrity |
+| `updates` | 7 | Automatic security updates and package maintenance |
+
+Example:
 
 ```bash
 sudo ./bin/linux-hardening-toolkit \
   --profile firewall \
   audit
-
-The firewall audit detects supported host firewall backends including UFW,
-firewalld, nftables, and iptables.
-
-It evaluates whether host firewall filtering is active, reviews default
-inbound and forwarding policies where possible, inspects the active ruleset,
-and inventories network services listening on wildcard addresses.
-
-Container-managed forwarding rules, such as Docker nftables chains, are not
-treated as evidence that the host itself has an active inbound firewall
-policy.
-
-### auth
-
-PAM and password authentication policy audit:
-
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile auth \
-  audit
 ```
 
-The authentication audit detects the central PAM stack and reviews
-null-password authentication, password quality enforcement, minimum password
-length, password history, failed-login lockout policy, and password hashing.
+## Audited security domains
 
-Debian/Ubuntu common-* PAM layouts and RHEL-family system-auth/password-auth
-layouts are supported. Checks distinguish between definite policy violations,
-unavailable controls, and settings that require manual review.
+### OpenSSH
 
-### filesystem
+The OpenSSH audit evaluates effective server configuration rather than only
+parsing individual configuration files.
 
-Sensitive file ownership and permission audit:
+Checks include controls such as:
 
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile filesystem \
-  audit
+- root login
+- password authentication
+- keyboard-interactive authentication
+- empty passwords
+- public-key authentication
+- maximum authentication attempts
+- user environment
+- X11 forwarding
+- agent forwarding
+- TCP forwarding
+
+Conditional OpenSSH configuration is handled through the effective
+configuration reported by the OpenSSH server where available.
+
+### Local accounts
+
+Account checks evaluate `/etc/passwd`, `/etc/shadow`, UID consistency,
+password database integrity, login shells, empty passwords, password aging,
+and password-change metadata.
+
+Shadow-dependent checks distinguish unavailable privilege from a definite
+security failure.
+
+### sudo
+
+The sudo profile evaluates:
+
+- sudo availability
+- configuration syntax
+- ownership
+- permissions
+- include-directory integrity
+- include-file naming
+- configuration writability
+
+### Kernel and sysctl
+
+Runtime kernel checks inspect the effective state exposed through `/proc/sys`.
+
+Coverage includes:
+
+- ASLR
+- kernel pointer restrictions
+- kernel log restrictions
+- ptrace policy
+- protected links and files
+- IPv4 and IPv6 redirect handling
+- source routing
+- reverse-path filtering
+- ICMP hardening
+- TCP SYN cookies
+- IP forwarding
+
+### Host firewall
+
+Firewall auditing detects common Linux firewall backends and distinguishes a
+real host input policy from container-specific forwarding rules.
+
+Supported detection includes:
+
+- UFW
+- firewalld
+- nftables
+- iptables
+
+The profile also reviews default policy, ruleset availability, forwarding,
+and exposed network listeners.
+
+### PAM and authentication
+
+Authentication auditing reviews the PAM stack and password policy controls,
+including:
+
+- null passwords
+- password quality
+- minimum password length
+- password history
+- failed-login lockout
+- lockout policy
+- password hashing
+
+### Filesystem permissions
+
+Filesystem auditing reviews sensitive Linux files and selected filesystem
+trees for:
+
+- ownership
+- permissions
+- SSH host-key protection
+- world-writable files
+- world-writable directories
+- unowned files
+- privileged SUID/SGID files
+
+The scanner intentionally avoids treating every privileged binary as a
+vulnerability.
+
+### Services and exposure
+
+Service checks evaluate:
+
+- failed systemd units
+- network listeners
+- insecure remote-access services
+- legacy file-transfer services
+- discovery and RPC services
+- inetd-style service managers
+
+Normal client-side DHCP sockets are not classified as exposed services.
+
+### Audit and logging
+
+The logging profile reviews:
+
+- systemd-journald
+- persistent journal storage
+- syslog
+- log-file permissions
+- auditd availability
+- auditd runtime state
+- kernel audit state
+- loaded audit rules
+- critical-path coverage
+- auditd configuration
+
+Dependent auditd checks are skipped when the audit subsystem is unavailable
+rather than producing misleading secondary failures.
+
+### Automatic security updates
+
+The updates profile reviews automatic package maintenance and security update
+configuration.
+
+APT-based Debian and Ubuntu systems are fully evaluated for:
+
+- unattended-upgrades
+- package metadata refresh
+- unattended installation
+- security repository scope
+- systemd update timers
+- pending reboot state
+
+DNF-based systems are also detected and evaluated where equivalent controls
+are available.
+
+## Command-line interface
+
+```text
+linux-hardening-toolkit [options] <command>
 ```
 
-The filesystem audit reviews ownership and permissions for critical account
-databases, the root home directory, and SSH private host keys.
+Commands:
 
-It also scans selected sensitive system paths for world-writable files,
-world-writable directories without sticky-bit protection, unowned objects,
-and SUID/SGID executables requiring security review.
-
-Runtime and container storage paths are intentionally excluded from broad
-ownership scans to reduce false positives caused by isolated UID/GID mappings.
-
-### services
-
-Service exposure and unnecessary network daemon audit:
-
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile services \
-  audit
+```text
+audit
+list-checks
+version
+help
 ```
 
-The services audit reviews the systemd runtime, failed service units,
-network-facing listeners, insecure legacy remote-access services, FTP/TFTP
-servers, RPC and multicast discovery daemons, and inetd-style superservers.
+Common options:
 
-Network-facing services are reported separately from definite security
-violations. Role-dependent services are surfaced for review rather than
-automatically treated as vulnerabilities.
-
-### audit
-
-Linux audit subsystem and security logging audit:
-
-```bash
-sudo ./bin/linux-hardening-toolkit \
-  --profile audit \
-  audit
+```text
+--profile NAME
+--format text|json
+--output PATH
+--dry-run
+--no-color
+-v, --verbose
+-h, --help
+--version
 ```
 
-The audit profile reviews systemd-journald availability and persistence,
-traditional syslog services, security log file permissions, Linux audit
-userspace availability, auditd service state, kernel audit status, active
-audit rules, critical-path coverage, and auditd failure handling.
+The `audit` command is always read-only.
 
-Unavailable audit functionality is reported separately from definite
-configuration violations so that missing auditd does not produce cascading
-false failures.
+`--dry-run` is part of the execution context for future mutating operations
+and does not make the current audit mode more or less destructive.
 
-### updates
+## Human-readable output
 
-Automatic security update and package maintenance audit:
+The default renderer is designed for interactive terminal use.
+
+Example:
+
+```text
+[PASS ] updates.backend          APT automatic update backend detected
+[PASS ] updates.automatic-tool   APT unattended-upgrades is installed
+[PASS ] updates.metadata-refresh Automatic APT package index refresh is enabled
+...
+Summary: PASS=7 FAIL=0 WARN=0 SKIP=0 ERROR=0
+```
+
+Use `--verbose` to display additional details for successful checks:
 
 ```bash
 sudo ./bin/linux-hardening-toolkit \
   --profile updates \
+  --verbose \
   audit
 ```
 
-The updates audit detects the system package-management backend and reviews
-automatic update tooling, repository metadata refresh, unattended package
-installation, security update scope, systemd update scheduling, and pending
-reboot state.
+## Machine-readable JSON reports
 
-APT-based Debian and Ubuntu systems are fully supported. DNF-based systems
-are also detected and evaluated where equivalent automatic-update controls
-are available.
-
-## Machine-readable reports
-
-Audit results can be emitted as structured JSON for CI pipelines, automation,
-security tooling, and further analysis.
-
-Write JSON to standard output:
+Audit results can be emitted as structured JSON:
 
 ```bash
-sudo ./bin/linux-hardening-toolkit \
+./bin/linux-hardening-toolkit \
   --profile default \
   --format json \
   audit
 ```
 
-Write the report directly to a file:
+Write the JSON report directly to a file:
 
 ```bash
 ./bin/linux-hardening-toolkit \
@@ -453,13 +337,21 @@ Write the report directly to a file:
   audit
 ```
 
-Generated report files are created with restrictive permissions (`0600`).
+Report files are generated atomically and use restrictive `0600`
+permissions.
 
-The JSON report includes toolkit and profile metadata, generation timestamp,
-audit summary and exit code, plus structured metadata and results for every
-executed check.
+The JSON document contains:
 
-Example result object:
+- schema version
+- toolkit version
+- profile metadata
+- generation timestamp
+- audit mode
+- result counters
+- process-equivalent exit code
+- metadata and result data for every executed check
+
+Example check object:
 
 ```json
 {
@@ -480,36 +372,127 @@ The current report schema version is `1`.
 
 | Code | Meaning |
 | ---: | --- |
-| `0` | Command completed successfully and no failed checks were found |
-| `1` | Toolkit, runtime, or check execution error |
+| `0` | Audit completed without failed checks or execution errors |
+| `1` | Toolkit, runtime, output, or check execution error |
 | `2` | Audit completed successfully but one or more checks failed |
 
-Warnings and skipped checks do not change the process exit code to `2`.
+`ERROR` takes precedence over `FAIL`.
+
+Warnings and skipped checks do not independently change the process exit code
+to `2`.
+
+This makes the toolkit suitable for automation and CI pipelines without
+conflating security findings with execution failures.
+
+## Architecture
+
+The project separates runtime infrastructure from individual security
+domains.
+
+```text
+linux-hardening-toolkit/
+├── bin/
+│   └── linux-hardening-toolkit
+├── lib/
+│   └── core/
+│       ├── bootstrap.sh
+│       ├── log.sh
+│       ├── profile.sh
+│       ├── registry.sh
+│       ├── report.sh
+│       ├── runner.sh
+│       ├── runtime.sh
+│       └── utils.sh
+├── modules/
+│   ├── accounts/
+│   ├── audit/
+│   ├── auth/
+│   ├── filesystem/
+│   ├── firewall/
+│   ├── runtime/
+│   ├── services/
+│   ├── ssh/
+│   ├── sudo/
+│   ├── sysctl/
+│   └── updates/
+├── profiles/
+├── scripts/
+│   └── lint.sh
+├── tests/
+│   ├── integration/
+│   ├── lib/
+│   ├── unit/
+│   └── run.sh
+└── VERSION
+```
+
+Modules register checks with the core registry.
+
+A registered check contains:
+
+- unique check ID
+- category
+- title
+- severity
+- audit function
+- optional future remediation function
+
+Profiles select registered check IDs without duplicating their implementation.
+
+The runner executes the selected checks, normalizes their results, records
+summary state, and passes the collected audit data to the requested output
+renderer.
+
+## Privilege model
+
+The toolkit does not automatically elevate privileges.
+
+Some checks can run as an unprivileged user while others require access to
+root-owned configuration or security metadata.
+
+For a complete server audit, run:
+
+```bash
+sudo ./bin/linux-hardening-toolkit audit
+```
+
+When insufficient privilege prevents a meaningful evaluation, checks are
+designed to distinguish that state from a confirmed security violation.
 
 ## Security baseline
 
-Linux Hardening Toolkit does not claim official CIS certification or
-official conformance with any third-party security benchmark.
+Linux Hardening Toolkit does **not** claim official CIS certification,
+CIS Benchmark conformance, or certification against another third-party
+security standard.
 
-Checks implemented by the project represent documented Linux security
-practices and explicitly distinguish between:
+The implemented checks represent explicit Linux security practices and the
+toolkit intentionally distinguishes between:
 
-- definite security baseline violations;
-- environment-dependent security decisions;
-- insufficient audit privileges;
-- unavailable or non-applicable functionality;
-- audit execution errors.
+- definite baseline violations
+- environment-dependent security decisions
+- insufficient audit privileges
+- unavailable or non-applicable functionality
+- audit execution errors
+
+The toolkit is an auditing aid, not a substitute for system-specific threat
+modeling, architecture review, or organizational security policy.
 
 ## Requirements
+
+Runtime:
 
 - Linux
 - Bash 4.0 or newer
 
-## Testing
+Individual checks may inspect native system tools and services when they are
+available.
 
-The project includes automated unit and integration tests for core toolkit
-behavior, result handling, JSON reporting, CLI validation, exit codes, and
-report file generation.
+Development and test tooling:
+
+- Python 3
+- ShellCheck
+
+## Testing
 
 Run the complete test suite:
 
@@ -517,43 +500,66 @@ Run the complete test suite:
 ./tests/run.sh
 ```
 
-The test runner also performs Bash syntax validation across the toolkit.
+The test infrastructure includes:
+
+- Bash syntax validation
+- registry unit tests
+- result and report unit tests
+- JSON serialization tests
+- report permission tests
+- CLI integration tests
+- CLI validation tests
+- exit-code verification
+- text-renderer verification
 
 ## Static analysis
 
-Shell scripts are checked with ShellCheck.
+Run ShellCheck across the project:
 
 ```bash
 ./scripts/lint.sh
 ```
 
-ShellCheck warnings are treated as code-quality issues and are resolved or
-explicitly documented where cross-file sourced state requires suppression.
+The lint script analyzes the executable, core libraries, security modules,
+test code, and development scripts.
 
 ## Continuous integration
 
-GitHub Actions automatically runs the ShellCheck and test-suite jobs on
-pushes and pull requests.
+GitHub Actions runs two independent jobs on pushes and pull requests:
 
-The CI pipeline verifies:
+```text
+ShellCheck
+Test Suite
+```
 
-- Bash syntax;
-- ShellCheck static analysis;
-- unit tests;
-- CLI integration tests;
-- JSON report generation and validation.
+The separation makes static-analysis failures and behavioral test failures
+independently visible in CI.
+
+## Version 1.0 scope
+
+Version 1.0 is intentionally **audit-only**.
+
+Automatic remediation is not performed.
+
+This keeps the initial stable release focused on predictable security
+assessment, explicit finding semantics, and safe execution on real Linux
+systems.
 
 ## Roadmap
 
-Planned security domains and capabilities include:
+Possible post-1.0 development areas include:
 
-- sudo policy;
-- kernel and sysctl;
-- remediation;
-- configuration backup;
-- rollback;
-- Ansible integration;
+- controlled remediation workflows
+- pre-change configuration backup
+- rollback support
+- Ansible integration
+- broader distribution-specific coverage
+- additional security domains
+- expanded automated test fixtures
+- report schema evolution
 
 ## License
 
-MIT
+Released under the MIT License.
+
+See [LICENSE](LICENSE).
