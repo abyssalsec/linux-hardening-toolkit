@@ -21,8 +21,6 @@ declare -ag LHT_ACCOUNTS_PASSWD_USERS=()
 
 declare -Ag LHT_ACCOUNTS_PASSWD_PASSWORD=()
 declare -Ag LHT_ACCOUNTS_PASSWD_UID=()
-declare -Ag LHT_ACCOUNTS_PASSWD_GID=()
-declare -Ag LHT_ACCOUNTS_PASSWD_HOME=()
 declare -Ag LHT_ACCOUNTS_PASSWD_SHELL=()
 declare -Ag LHT_ACCOUNTS_UID_USERS=()
 
@@ -33,8 +31,6 @@ declare -Ag LHT_ACCOUNTS_SHADOW_LAST_CHANGE=()
 declare -Ag LHT_ACCOUNTS_SHADOW_MIN_DAYS=()
 declare -Ag LHT_ACCOUNTS_SHADOW_MAX_DAYS=()
 declare -Ag LHT_ACCOUNTS_SHADOW_WARN_DAYS=()
-declare -Ag LHT_ACCOUNTS_SHADOW_INACTIVE_DAYS=()
-declare -Ag LHT_ACCOUNTS_SHADOW_EXPIRE_DAY=()
 
 lht_accounts_append_detail() {
   local current="${1-}"
@@ -57,8 +53,6 @@ lht_accounts_collect_passwd() {
   LHT_ACCOUNTS_PASSWD_USERS=()
   LHT_ACCOUNTS_PASSWD_PASSWORD=()
   LHT_ACCOUNTS_PASSWD_UID=()
-  LHT_ACCOUNTS_PASSWD_GID=()
-  LHT_ACCOUNTS_PASSWD_HOME=()
   LHT_ACCOUNTS_PASSWD_SHELL=()
   LHT_ACCOUNTS_UID_USERS=()
 
@@ -104,8 +98,6 @@ lht_accounts_collect_passwd() {
 
     LHT_ACCOUNTS_PASSWD_PASSWORD["$name"]="$password"
     LHT_ACCOUNTS_PASSWD_UID["$name"]="$uid"
-    LHT_ACCOUNTS_PASSWD_GID["$name"]="$gid"
-    LHT_ACCOUNTS_PASSWD_HOME["$name"]="$home"
     LHT_ACCOUNTS_PASSWD_SHELL["$name"]="$shell"
 
     if [[ -n "${LHT_ACCOUNTS_UID_USERS[$uid]+x}" ]]; then
@@ -153,8 +145,6 @@ lht_accounts_collect_shadow() {
   LHT_ACCOUNTS_SHADOW_MIN_DAYS=()
   LHT_ACCOUNTS_SHADOW_MAX_DAYS=()
   LHT_ACCOUNTS_SHADOW_WARN_DAYS=()
-  LHT_ACCOUNTS_SHADOW_INACTIVE_DAYS=()
-  LHT_ACCOUNTS_SHADOW_EXPIRE_DAY=()
 
   if [[ ! -e /etc/shadow ]]; then
     LHT_ACCOUNTS_SHADOW_STATUS="error"
@@ -212,8 +202,6 @@ lht_accounts_collect_shadow() {
     LHT_ACCOUNTS_SHADOW_MIN_DAYS["$name"]="$min_days"
     LHT_ACCOUNTS_SHADOW_MAX_DAYS["$name"]="$max_days"
     LHT_ACCOUNTS_SHADOW_WARN_DAYS["$name"]="$warn_days"
-    LHT_ACCOUNTS_SHADOW_INACTIVE_DAYS["$name"]="$inactive_days"
-    LHT_ACCOUNTS_SHADOW_EXPIRE_DAY["$name"]="$expire_day"
   done < /etc/shadow
 
   LHT_ACCOUNTS_SHADOW_STATUS="ok"

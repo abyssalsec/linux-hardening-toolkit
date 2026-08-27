@@ -56,10 +56,14 @@ lht_register_check() {
 
   LHT_CHECK_IDS+=("$check_id")
 
+  # shellcheck disable=SC2034
   LHT_CHECK_CATEGORY["$check_id"]="$category"
   LHT_CHECK_TITLE["$check_id"]="$title"
+  # shellcheck disable=SC2034
   LHT_CHECK_SEVERITY["$check_id"]="$severity"
+  # shellcheck disable=SC2034
   LHT_CHECK_AUDIT_FN["$check_id"]="$audit_function"
+  # shellcheck disable=SC2034
   LHT_CHECK_APPLY_FN["$check_id"]="$apply_function"
 
   lht_log_debug "Registered check: ${check_id}"

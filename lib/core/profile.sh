@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+  # shellcheck disable=SC2034
 LHT_PROFILE_DISPLAY_NAME=""
+  # shellcheck disable=SC2034
 LHT_PROFILE_DESCRIPTION=""
 
 declare -ag LHT_ENABLED_CHECKS=()
@@ -83,7 +85,9 @@ lht_load_profile() {
       "Profile '${requested_profile}' does not define enabled_checks"
   fi
 
+  # shellcheck disable=SC2034
   LHT_PROFILE_DISPLAY_NAME="$profile_display_name"
+  # shellcheck disable=SC2034
   LHT_PROFILE_DESCRIPTION="$profile_description"
   LHT_ENABLED_CHECKS=()
 
